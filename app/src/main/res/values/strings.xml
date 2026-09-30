@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">لا إله إلا الله</string>
+    <string name="first_phrase">لا إله إلا الله</string>
+    <string name="second_phrase">محمد رسول الله</string>
+    <string name="widget_name">ودجت الشهادتين</string>
+    <string name="widget_description">يعرض (لا إله إلا الله) و (محمد رسول الله) ع الشاشة الرئيسية</string>
+</resources>

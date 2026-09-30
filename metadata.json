@@ -1,0 +1,6 @@
+{
+  "name": "لا إله إلا الله",
+  "description": "تطبيق لعرض عبارتي (محمد رسول الله) و (لا إله إلا الله) بالخط العربي الجميل مع التبديل التلقائي ودعم ودجت الشاشة الرئيسية",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
