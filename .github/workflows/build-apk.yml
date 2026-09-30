@@ -10,14 +10,12 @@ permissions:
 
 jobs:
   build:
-    name: Build & Generate APK
+    name: Build APK
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -26,56 +24,63 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Restore Keystore and Environment Config
         run: |
           # Recreate debug.keystore from base64
           if [ -f "debug.keystore.base64" ]; then
             base64 -d debug.keystore.base64 > debug.keystore
-            echo "Successfully restored debug.keystore from base64"
+            echo "debug.keystore restored successfully"
           fi
-          
-          # Recreate .env from .env.example
+
+          # Create .env from template
           if [ ! -f ".env" ] && [ -f ".env.example" ]; then
             cp .env.example .env
-            echo "Successfully created .env"
+            echo ".env created from template"
           fi
-          
-          # Set execute permissions on gradle wrapper
+
+          # Ensure execution permissions for gradlew
           chmod +x gradlew
+
+          # Accept Android licenses automatically
+          mkdir -p "${ANDROID_HOME}/licenses"
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> "${ANDROID_HOME}/licenses/android-sdk-license"
+          echo "84831b9409646a918e30573bab4c9c91346d8abd" >> "${ANDROID_HOME}/licenses/android-sdk-license"
+          echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> "${ANDROID_HOME}/licenses/android-sdk-license"
 
       - name: Build APK with Gradle Wrapper
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Copy and Rename APK for Easy Download
+      - name: Prepare APK File
         run: |
-          mkdir -p release-apk
-          APK_FILE=$(find . -name "*debug*.apk" | head -n 1)
+          mkdir -p output-apk
+          APK_FILE=$(find . -name "*debug*.apk" -o -name "app-debug.apk" | head -n 1)
           if [ -n "$APK_FILE" ]; then
-            cp "$APK_FILE" release-apk/Tawheed_App.apk
-            echo "APK prepared: release-apk/Tawheed_App.apk"
+            cp "$APK_FILE" output-apk/Tawheed_App.apk
+            echo "Found and prepared APK: output-apk/Tawheed_App.apk"
           else
-            echo "No APK found!"
+            echo "ERROR: No APK was generated!"
             exit 1
           fi
 
-      - name: Upload APK as Artifact
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Tawheed_App_APK
-          path: release-apk/Tawheed_App.apk
+          path: output-apk/Tawheed_App.apk
           if-no-files-found: error
+          retention-days: 30
 
-      - name: Create or Update GitHub Release with direct APK download
+      - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete "v1.0" --yes || true
           git tag -d "v1.0" || true
           git push origin :refs/tags/v1.0 || true
-          gh release create "v1.0" release-apk/Tawheed_App.apk \
+          gh release create "v1.0" output-apk/Tawheed_App.apk \
             --title "تحميل تطبيق ذكر التوحيد (APK)" \
-            --notes "اضغط على Tawheed_App.apk لتحميل التطبيق مباشرة وتثبيته على هاتفك." \
-            --target "${{ github.sha }}" || echo "Release creation completed or skipped"
+            --notes "اضغط على Tawheed_App.apk بالأسفل لتحميل التطبيق مباشرة وتثبيته على هاتفك." \
+            --target "${{ github.sha }}" || echo "Release step finished"
