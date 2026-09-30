@@ -1,0 +1,81 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ "**" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & Generate APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Restore Keystore and Environment Config
+        run: |
+          # Recreate debug.keystore from base64
+          if [ -f "debug.keystore.base64" ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+            echo "Successfully restored debug.keystore from base64"
+          fi
+          
+          # Recreate .env from .env.example
+          if [ ! -f ".env" ] && [ -f ".env.example" ]; then
+            cp .env.example .env
+            echo "Successfully created .env"
+          fi
+          
+          # Set execute permissions on gradle wrapper
+          chmod +x gradlew
+
+      - name: Build APK with Gradle Wrapper
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Copy and Rename APK for Easy Download
+        run: |
+          mkdir -p release-apk
+          APK_FILE=$(find . -name "*debug*.apk" | head -n 1)
+          if [ -n "$APK_FILE" ]; then
+            cp "$APK_FILE" release-apk/Tawheed_App.apk
+            echo "APK prepared: release-apk/Tawheed_App.apk"
+          else
+            echo "No APK found!"
+            exit 1
+          fi
+
+      - name: Upload APK as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tawheed_App_APK
+          path: release-apk/Tawheed_App.apk
+          if-no-files-found: error
+
+      - name: Create or Update GitHub Release with direct APK download
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete "v1.0" --yes || true
+          git tag -d "v1.0" || true
+          git push origin :refs/tags/v1.0 || true
+          gh release create "v1.0" release-apk/Tawheed_App.apk \
+            --title "تحميل تطبيق ذكر التوحيد (APK)" \
+            --notes "اضغط على Tawheed_App.apk لتحميل التطبيق مباشرة وتثبيته على هاتفك." \
+            --target "${{ github.sha }}" || echo "Release creation completed or skipped"
