@@ -6,64 +6,73 @@
     android:background="@drawable/widget_bg"
     android:gravity="center"
     android:orientation="vertical"
-    android:padding="14dp">
+    android:paddingStart="14dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="14dp"
+    android:paddingBottom="10dp">
 
-    <!-- Header line with ornament & title -->
+    <!-- Top mini header with switch button -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <ImageView
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:contentDescription="شعار"
-            android:src="@drawable/app_launcher_icon" />
-
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
             android:layout_weight="1"
             android:fontFamily="serif"
             android:text="ذكر التوحيد"
-            android:textColor="#7A6843"
+            android:textColor="#8C7853"
             android:textSize="11sp" />
 
         <ImageButton
             android:id="@+id/widget_btn_switch"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
             android:background="@drawable/widget_button_bg"
             android:contentDescription="تبديل العبارة"
-            android:padding="6dp"
+            android:padding="5dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_swap" />
     </LinearLayout>
 
-    <!-- Main Phrase in Black Color -->
+    <!-- 1. The Dhikr without background (bold black) -->
     <TextView
         android:id="@+id/widget_text"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:layout_marginBottom="2dp"
         android:gravity="center"
-        android:paddingStart="6dp"
-        android:paddingTop="4dp"
-        android:paddingEnd="6dp"
-        android:paddingBottom="4dp"
         android:text="(لا إله إلا الله)"
         android:textColor="#000000"
-        android:textSize="22sp"
+        android:textSize="20sp"
         android:textStyle="bold" />
 
-    <!-- Footer tip -->
-    <TextView
+    <!-- 2. Digital Clock under Dhikr -->
+    <TextClock
+        android:id="@+id/widget_clock"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="اضغط للتبديل أو الفتح"
-        android:textColor="#9E927A"
-        android:textSize="10sp" />
+        android:format12Hour="hh:mm a"
+        android:format24Hour="HH:mm"
+        android:gravity="center"
+        android:textColor="#111827"
+        android:textSize="17sp"
+        android:textStyle="bold" />
+
+    <!-- 3. Date under Clock -->
+    <TextClock
+        android:id="@+id/widget_date"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:format12Hour="EEEE، d MMMM"
+        android:format24Hour="EEEE، d MMMM"
+        android:gravity="center"
+        android:textColor="#6B604A"
+        android:textSize="11sp" />
 
 </LinearLayout>

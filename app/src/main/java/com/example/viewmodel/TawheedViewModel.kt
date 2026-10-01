@@ -50,7 +50,7 @@ data class TawheedUiState(
     val selectedFont: ArabicFontType = ArabicFontType.AMIRI,
     val fontSizeSp: Float = 42f,
     val bracketStyle: BracketStyle = BracketStyle.ROUND,
-    val selectedTheme: DisplayTheme = DisplayTheme.PARCHMENT,
+    val selectedTheme: DisplayTheme = DisplayTheme.PURE_WHITE,
     val hapticEnabled: Boolean = true,
     val keepScreenOn: Boolean = true,
     val showVirtue: Boolean = true,
@@ -91,9 +91,9 @@ class TawheedViewModel(application: Application) : AndroidViewModel(application)
                 BracketStyle.ROUND
             },
             selectedTheme = try {
-                DisplayTheme.valueOf(prefs.getString(KEY_DISPLAY_THEME, DisplayTheme.PARCHMENT.name) ?: DisplayTheme.PARCHMENT.name)
+                DisplayTheme.valueOf(prefs.getString(KEY_DISPLAY_THEME, DisplayTheme.PURE_WHITE.name) ?: DisplayTheme.PURE_WHITE.name)
             } catch (e: Exception) {
-                DisplayTheme.PARCHMENT
+                DisplayTheme.PURE_WHITE
             },
             hapticEnabled = prefs.getBoolean(KEY_HAPTIC, true),
             keepScreenOn = prefs.getBoolean(KEY_KEEP_SCREEN_ON, true),

@@ -119,6 +119,12 @@ import com.example.ui.theme.TextDark
 import com.example.ui.theme.WhiteBackground
 import com.example.viewmodel.TawheedUiState
 import com.example.viewmodel.TawheedViewModel
+import android.os.Build
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
@@ -194,69 +200,12 @@ fun TawheedMainScreen(
 
 @Composable
 fun ThemeBackground(theme: DisplayTheme) {
-    when (theme) {
-        DisplayTheme.PARCHMENT -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                Color(0xFFFCFBF7),
-                                Color(0xFFF7F3E9),
-                                Color(0xFFF1EAD8)
-                            )
-                        )
-                    )
-            )
-        }
-        DisplayTheme.ISLAMIC_ART -> {
-            Image(
-                painter = painterResource(id = R.drawable.bg_islamic_light),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-                alpha = 0.95f
-            )
-        }
-        DisplayTheme.PURE_WHITE -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(WhiteBackground)
-            )
-        }
-        DisplayTheme.SAGE_MINT -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                Color(0xFFF6FAF7),
-                                SageBackground,
-                                Color(0xFFE5EFE8)
-                            )
-                        )
-                    )
-            )
-        }
-        DisplayTheme.SOFT_MARBLE -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                Color(0xFFFFFFFF),
-                                MarbleBackground,
-                                Color(0xFFECEFF2)
-                            )
-                        )
-                    )
-            )
-        }
-    }
+    // Pure spotless background without any images, gradients, or textures
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -266,11 +215,11 @@ fun StandardDisplay(
     viewModel: TawheedViewModel
 ) {
     Scaffold(
-        containerColor = Color.Transparent,
+        containerColor = Color.White,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
+                    containerColor = Color.White,
                     titleContentColor = IslamicGreen
                 ),
                 title = {
@@ -281,33 +230,24 @@ fun StandardDisplay(
                         Surface(
                             shape = CircleShape,
                             color = IslamicGreen.copy(alpha = 0.1f),
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(34.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Image(
                                     painter = painterResource(id = R.drawable.app_launcher_icon),
                                     contentDescription = "شعار التطبيق",
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }
-                        Column {
-                            Text(
-                                text = "شهادة التوحيد",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontFamily = CairoFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextDark
-                                )
+                        Text(
+                            text = "ذكر التوحيد",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontFamily = CairoFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                color = TextDark
                             )
-                            Text(
-                                text = "التبديل التلقائي ع الشاشة",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = CairoFontFamily,
-                                    color = IslamicGold
-                                )
-                            )
-                        }
+                        )
                     }
                 },
                 actions = {
@@ -348,53 +288,250 @@ fun StandardDisplay(
                     }
                 }
             )
+        },
+        bottomBar = {
+            // Minimal floating controls at the bottom
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp, start = 16.dp, end = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Subtle auto-switch countdown bar
+                if (state.isAutoSwitching) {
+                    LinearProgressIndicator(
+                        progress = { state.progressRemainingRatio },
+                        modifier = Modifier
+                            .width(140.dp)
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(2.dp)),
+                        color = IslamicGreen.copy(alpha = 0.6f),
+                        trackColor = Color(0x1A000000)
+                    )
+                }
+
+                // Controls row
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { viewModel.previousPhrase() },
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x08000000))
+                            .testTag("btn_prev_phrase")
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "العبارة السابقة",
+                            tint = IslamicGreen
+                        )
+                    }
+
+                    FilledTonalButton(
+                        onClick = { viewModel.toggleAutoSwitch() },
+                        shape = CircleShape,
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = if (state.isAutoSwitching) IslamicGreen else IslamicGold,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (state.isAutoSwitching) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (state.isAutoSwitching) "إيقاف التبديل التلقائي" else "تشغيل التبديل التلقائي",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (state.isAutoSwitching) "تبديل تلقائي: شغال" else "تبديل تلقائي: متوقف",
+                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = CairoFontFamily)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { viewModel.nextPhrase() },
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x08000000))
+                            .testTag("btn_next_phrase")
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "العبارة التالية",
+                            tint = IslamicGreen
+                        )
+                    }
+                }
+            }
         }
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .background(Color.White)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    viewModel.incrementCounter()
+                },
+            contentAlignment = Alignment.Center
         ) {
-            // Widget Home Screen Alert/Banner
-            WidgetPromoBanner(
-                onOpenWidgetGuide = { viewModel.setShowWidgetDialog(true) }
-            )
-
-            // Main Display Card (Hero Section)
             MainPhraseCard(
                 state = state,
                 viewModel = viewModel
             )
+        }
+    }
+}
 
-            // Auto-Switch Timer Progress Bar
-            AutoSwitchTimerBar(
-                state = state,
-                viewModel = viewModel
+data class ClockDateState(
+    val timeString: String = "",
+    val secondsString: String = "",
+    val amPmString: String = "",
+    val gregorianDate: String = "",
+    val hijriDate: String = ""
+)
+
+@Composable
+fun rememberCurrentClockDate(): ClockDateState {
+    var state by remember { mutableStateOf(calculateCurrentClockDate()) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            state = calculateCurrentClockDate()
+            delay(1000L)
+        }
+    }
+
+    return state
+}
+
+private fun calculateCurrentClockDate(): ClockDateState {
+    val now = Date()
+    val localeAr = Locale("ar")
+
+    // Formatter for hours:minutes in standard clean digital numerals
+    val timeFmt = SimpleDateFormat("hh:mm", Locale.ENGLISH)
+    val secFmt = SimpleDateFormat("ss", Locale.ENGLISH)
+    val amPmFmt = SimpleDateFormat("a", localeAr)
+    val dateFmt = SimpleDateFormat("EEEE، d MMMM yyyy", localeAr)
+
+    val timeStr = timeFmt.format(now)
+    val secStr = secFmt.format(now)
+    val amPmStr = amPmFmt.format(now)
+    val gregorianStr = dateFmt.format(now)
+
+    var hijriStr = ""
+    try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val hijrahDate = java.time.chrono.HijrahDate.now()
+            val hijriFormatter = java.time.format.DateTimeFormatter.ofPattern("d MMMM yyyy", localeAr)
+            hijriStr = "${hijriFormatter.format(hijrahDate)} هـ"
+        }
+    } catch (_: Throwable) {
+        hijriStr = ""
+    }
+
+    return ClockDateState(
+        timeString = timeStr,
+        secondsString = secStr,
+        amPmString = amPmStr,
+        gregorianDate = gregorianStr,
+        hijriDate = hijriStr
+    )
+}
+
+@Composable
+fun DigitalClockView(
+    timeString: String,
+    secondsString: String,
+    amPmString: String,
+    modifier: Modifier = Modifier,
+    isLarge: Boolean = false
+) {
+    Row(
+        modifier = modifier
+            .padding(
+                horizontal = if (isLarge) 16.dp else 12.dp,
+                vertical = if (isLarge) 8.dp else 4.dp
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        // Main Time (hh:mm)
+        Text(
+            text = timeString,
+            fontSize = if (isLarge) 50.sp else 38.sp,
+            fontWeight = FontWeight.ExtraBold,
+            fontFamily = CairoFontFamily,
+            color = Color(0xFF111827),
+            letterSpacing = 2.sp
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Seconds and AM/PM
+        Column(
+            horizontalAlignment = Alignment.Start,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = ":$secondsString",
+                fontSize = if (isLarge) 18.sp else 14.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = CairoFontFamily,
+                color = IslamicGold
             )
-
-            // Playback & Navigation Controls
-            PhraseControlsRow(
-                state = state,
-                viewModel = viewModel
+            Text(
+                text = amPmString,
+                fontSize = if (isLarge) 16.sp else 13.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = CairoFontFamily,
+                color = IslamicGreen
             )
+        }
+    }
+}
 
-            // Interval Presets Selector
-            IntervalPresetsSelector(
-                currentInterval = state.intervalSeconds,
-                onSelectInterval = { viewModel.setInterval(it) }
+@Composable
+fun DateDisplayView(
+    gregorianDate: String,
+    hijriDate: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        // Gregorian Date with day name
+        Text(
+            text = gregorianDate,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = CairoFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF374151)
+            ),
+            textAlign = TextAlign.Center
+        )
+
+        // Hijri Date
+        if (hijriDate.isNotEmpty()) {
+            Text(
+                text = "• $hijriDate •",
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = CairoFontFamily,
+                    fontWeight = FontWeight.Normal,
+                    color = IslamicGold
+                ),
+                textAlign = TextAlign.Center
             )
-
-            // Tasbeeh / Dhikr Counter
-            TasbeehCounterCard(
-                state = state,
-                viewModel = viewModel
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -410,143 +547,73 @@ fun MainPhraseCard(
         ArabicFontType.SYSTEM -> FontFamily.Default
     }
 
-    Card(
+    val clockDate = rememberCurrentClockDate()
+
+    // 100% Pure Display Without Any Background - Exactly Like a Clock
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .widthIn(max = 600.dp)
-            .shadow(
-                elevation = 6.dp,
-                shape = RoundedCornerShape(28.dp),
-                spotColor = Color(0x33443311)
-            )
-            .border(
-                width = 1.5.dp,
-                color = IslamicGold.copy(alpha = 0.35f),
-                shape = RoundedCornerShape(28.dp)
-            )
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            ) {
-                // Tapping card increments counter
-                viewModel.incrementCounter()
-            }
+            .padding(horizontal = 16.dp, vertical = 20.dp)
             .testTag("main_phrase_card"),
-        shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = CreamCard.copy(alpha = 0.95f)
-        )
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            // Top ornamental badge
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp, 1.dp)
-                        .background(IslamicGold.copy(alpha = 0.6f))
-                )
-                Text(
-                    text = if (state.currentIndex == 0) "الشهادة الأولى" else "الشهادة الثانية",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = CairoFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        color = IslamicGold
+        // 1. The Arabic Dhikr Text in pure solid black font, WITHOUT background or card box
+        AnimatedContent(
+            targetState = state.formattedPhrase,
+            transitionSpec = {
+                (fadeIn(animationSpec = tween(500)) + slideInHorizontally(tween(500)) { 40 })
+                    .togetherWith(
+                        fadeOut(animationSpec = tween(400)) + slideOutHorizontally(tween(400)) { -40 }
                     )
-                )
-                Box(
-                    modifier = Modifier
-                        .size(24.dp, 1.dp)
-                        .background(IslamicGold.copy(alpha = 0.6f))
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // The Arabic Text in solid, high-contrast BLACK font with animated transition
-            AnimatedContent(
-                targetState = state.formattedPhrase,
-                transitionSpec = {
-                    (fadeIn(animationSpec = tween(500)) + slideInHorizontally(tween(500)) { 40 })
-                        .togetherWith(
-                            fadeOut(animationSpec = tween(400)) + slideOutHorizontally(tween(400)) { -40 }
-                        )
-                },
-                label = "phrase_transition"
-            ) { displayText ->
-                Text(
-                    text = displayText,
-                    color = TextBlack, // SOLID BLACK FONT as specifically requested
-                    fontSize = state.fontSizeSp.sp,
-                    lineHeight = (state.fontSizeSp * 1.35f).sp,
-                    fontFamily = selectedFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp)
-                        .testTag("displayed_arabic_phrase")
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Meaning / Virtue
-            AnimatedVisibility(visible = state.showVirtue) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(horizontal = 12.dp)
-                ) {
-                    Text(
-                        text = state.currentItem.virtue,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontFamily = CairoFontFamily,
-                            color = Color(0xFF555047),
-                            textAlign = TextAlign.Center
-                        )
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = state.currentItem.translation,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            color = Color(0xFF888072),
-                            textAlign = TextAlign.Center
-                        )
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Tap hint indicator
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            },
+            label = "phrase_transition"
+        ) { displayText ->
+            Text(
+                text = displayText,
+                color = TextBlack, // SOLID BLACK FONT as specifically requested
+                fontSize = (state.fontSizeSp * 1.2f).sp,
+                lineHeight = (state.fontSizeSp * 1.55f).sp,
+                fontFamily = selectedFontFamily,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFF3EEDF))
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp)
+                    .testTag("displayed_arabic_phrase")
+            )
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // 2. Digital Clock directly under Dhikr - Pure and borderless
+        DigitalClockView(
+            timeString = clockDate.timeString,
+            secondsString = clockDate.secondsString,
+            amPmString = clockDate.amPmString
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 3. Date directly under Clock
+        DateDisplayView(
+            gregorianDate = clockDate.gregorianDate,
+            hijriDate = clockDate.hijriDate
+        )
+
+        // Meaning / Virtue (optional)
+        AnimatedVisibility(visible = state.showVirtue) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(top = 16.dp, start = 16.dp, end = 16.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.TouchApp,
-                    contentDescription = null,
-                    tint = IslamicGold,
-                    modifier = Modifier.size(14.dp)
-                )
                 Text(
-                    text = "المس لزيادة عدد التسبيح (+1)",
-                    style = MaterialTheme.typography.labelSmall.copy(
+                    text = state.currentItem.virtue,
+                    style = MaterialTheme.typography.bodyMedium.copy(
                         fontFamily = CairoFontFamily,
-                        color = Color(0xFF6B604A),
-                        fontSize = 11.sp
+                        color = Color(0xFF555047),
+                        textAlign = TextAlign.Center
                     )
                 )
             }
@@ -1026,6 +1093,7 @@ fun FullscreenDisplay(
         ArabicFontType.SYSTEM -> FontFamily.Default
     }
 
+    val clockDate = rememberCurrentClockDate()
     var showControlsTemporarily by remember { mutableStateOf(false) }
 
     Box(
@@ -1053,7 +1121,7 @@ fun FullscreenDisplay(
             )
         }
 
-        // Center Phrase
+        // Center Phrase with Digital Clock and Date
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1061,6 +1129,7 @@ fun FullscreenDisplay(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // 1. Dhikr without background
             AnimatedContent(
                 targetState = state.formattedPhrase,
                 transitionSpec = {
@@ -1082,6 +1151,24 @@ fun FullscreenDisplay(
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 2. Digital Clock under Dhikr in Fullscreen
+            DigitalClockView(
+                timeString = clockDate.timeString,
+                secondsString = clockDate.secondsString,
+                amPmString = clockDate.amPmString,
+                isLarge = true
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 3. Date under Clock in Fullscreen
+            DateDisplayView(
+                gregorianDate = clockDate.gregorianDate,
+                hijriDate = clockDate.hijriDate
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
