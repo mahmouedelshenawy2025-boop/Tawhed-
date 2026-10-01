@@ -55,6 +55,8 @@ data class TawheedUiState(
     val keepScreenOn: Boolean = true,
     val showVirtue: Boolean = true,
     val isFullscreen: Boolean = false,
+    val showHijriDate: Boolean = true,
+    val hijriAdjustmentDays: Int = 0,
     val counterFirst: Int = 0,
     val counterSecond: Int = 0,
     val showWidgetDialog: Boolean = false,
@@ -98,6 +100,8 @@ class TawheedViewModel(application: Application) : AndroidViewModel(application)
             hapticEnabled = prefs.getBoolean(KEY_HAPTIC, true),
             keepScreenOn = prefs.getBoolean(KEY_KEEP_SCREEN_ON, true),
             showVirtue = prefs.getBoolean(KEY_SHOW_VIRTUE, true),
+            showHijriDate = prefs.getBoolean(KEY_SHOW_HIJRI_DATE, true),
+            hijriAdjustmentDays = prefs.getInt(KEY_HIJRI_ADJUSTMENT, 0),
             counterFirst = prefs.getInt(KEY_COUNTER_FIRST, 0),
             counterSecond = prefs.getInt(KEY_COUNTER_SECOND, 0)
         )
@@ -297,6 +301,22 @@ class TawheedViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun toggleShowHijriDate() {
+        _uiState.update {
+            val newVal = !it.showHijriDate
+            prefs.edit().putBoolean(KEY_SHOW_HIJRI_DATE, newVal).apply()
+            it.copy(showHijriDate = newVal)
+        }
+    }
+
+    fun setHijriAdjustment(days: Int) {
+        val clamped = days.coerceIn(-2, 2)
+        _uiState.update {
+            prefs.edit().putInt(KEY_HIJRI_ADJUSTMENT, clamped).apply()
+            it.copy(hijriAdjustmentDays = clamped)
+        }
+    }
+
     fun resetAllCounters() {
         _uiState.update { it.copy(counterFirst = 0, counterSecond = 0) }
         prefs.edit().putInt(KEY_COUNTER_FIRST, 0).putInt(KEY_COUNTER_SECOND, 0).apply()
@@ -375,5 +395,7 @@ class TawheedViewModel(application: Application) : AndroidViewModel(application)
         private const val KEY_SHOW_VIRTUE = "app_show_virtue"
         private const val KEY_COUNTER_FIRST = "app_counter_first"
         private const val KEY_COUNTER_SECOND = "app_counter_second"
+        private const val KEY_SHOW_HIJRI_DATE = "app_show_hijri_date"
+        private const val KEY_HIJRI_ADJUSTMENT = "app_hijri_adjustment"
     }
 }

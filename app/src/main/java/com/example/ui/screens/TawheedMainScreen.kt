@@ -399,12 +399,12 @@ data class ClockDateState(
 )
 
 @Composable
-fun rememberCurrentClockDate(): ClockDateState {
-    var state by remember { mutableStateOf(calculateCurrentClockDate()) }
+fun rememberCurrentClockDate(hijriAdjustment: Int = 0): ClockDateState {
+    var state by remember(hijriAdjustment) { mutableStateOf(calculateCurrentClockDate(hijriAdjustment)) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(hijriAdjustment) {
         while (true) {
-            state = calculateCurrentClockDate()
+            state = calculateCurrentClockDate(hijriAdjustment)
             delay(1000L)
         }
     }
@@ -412,7 +412,7 @@ fun rememberCurrentClockDate(): ClockDateState {
     return state
 }
 
-private fun calculateCurrentClockDate(): ClockDateState {
+private fun calculateCurrentClockDate(hijriAdjustment: Int = 0): ClockDateState {
     val now = Date()
     val localeAr = Locale("ar")
 
@@ -430,7 +430,8 @@ private fun calculateCurrentClockDate(): ClockDateState {
     var hijriStr = ""
     try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val hijrahDate = java.time.chrono.HijrahDate.now()
+            val localDate = java.time.LocalDate.now().plusDays(hijriAdjustment.toLong())
+            val hijrahDate = java.time.chrono.HijrahDate.from(localDate)
             val hijriFormatter = java.time.format.DateTimeFormatter.ofPattern("d MMMM yyyy", localeAr)
             hijriStr = "${hijriFormatter.format(hijrahDate)} هـ"
         }
@@ -503,6 +504,7 @@ fun DigitalClockView(
 fun DateDisplayView(
     gregorianDate: String,
     hijriDate: String,
+    showHijri: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -521,8 +523,8 @@ fun DateDisplayView(
             textAlign = TextAlign.Center
         )
 
-        // Hijri Date
-        if (hijriDate.isNotEmpty()) {
+        // Hijri Date if enabled
+        if (showHijri && hijriDate.isNotEmpty()) {
             Text(
                 text = "• $hijriDate •",
                 style = MaterialTheme.typography.bodyMedium.copy(
@@ -541,13 +543,7 @@ fun MainPhraseCard(
     state: TawheedUiState,
     viewModel: TawheedViewModel
 ) {
-    val selectedFontFamily = when (state.selectedFont) {
-        ArabicFontType.AMIRI -> AmiriFontFamily
-        ArabicFontType.CAIRO -> CairoFontFamily
-        ArabicFontType.SYSTEM -> FontFamily.Default
-    }
-
-    val clockDate = rememberCurrentClockDate()
+    val clockDate = rememberCurrentClockDate(state.hijriAdjustmentDays)
 
     // 100% Pure Display Without Any Background - Exactly Like a Clock
     Column(
@@ -559,23 +555,33 @@ fun MainPhraseCard(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // 1. The Arabic Dhikr Text in pure solid black font, WITHOUT background or card box
+        // 1. The Arabic Dhikr Text in pure solid black font - fully reactive to size and font type
         AnimatedContent(
-            targetState = state.formattedPhrase,
+            targetState = Triple(state.formattedPhrase, state.selectedFont, state.fontSizeSp),
             transitionSpec = {
-                (fadeIn(animationSpec = tween(500)) + slideInHorizontally(tween(500)) { 40 })
-                    .togetherWith(
-                        fadeOut(animationSpec = tween(400)) + slideOutHorizontally(tween(400)) { -40 }
-                    )
+                if (initialState.first != targetState.first) {
+                    (fadeIn(animationSpec = tween(400)) + slideInHorizontally(tween(400)) { 30 })
+                        .togetherWith(
+                            fadeOut(animationSpec = tween(300)) + slideOutHorizontally(tween(300)) { -30 }
+                        )
+                } else {
+                    fadeIn(animationSpec = tween(150)).togetherWith(fadeOut(animationSpec = tween(150)))
+                }
             },
             label = "phrase_transition"
-        ) { displayText ->
+        ) { (phraseText, fontType, fontSize) ->
+            val font = when (fontType) {
+                ArabicFontType.AMIRI -> AmiriFontFamily
+                ArabicFontType.CAIRO -> CairoFontFamily
+                ArabicFontType.SYSTEM -> FontFamily.Default
+            }
+
             Text(
-                text = displayText,
+                text = phraseText,
                 color = TextBlack, // SOLID BLACK FONT as specifically requested
-                fontSize = (state.fontSizeSp * 1.2f).sp,
-                lineHeight = (state.fontSizeSp * 1.55f).sp,
-                fontFamily = selectedFontFamily,
+                fontSize = fontSize.sp,
+                lineHeight = (fontSize * 1.35f).sp,
+                fontFamily = font,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
@@ -599,7 +605,8 @@ fun MainPhraseCard(
         // 3. Date directly under Clock
         DateDisplayView(
             gregorianDate = clockDate.gregorianDate,
-            hijriDate = clockDate.hijriDate
+            hijriDate = clockDate.hijriDate,
+            showHijri = state.showHijriDate
         )
 
         // Meaning / Virtue (optional)
@@ -1129,23 +1136,32 @@ fun FullscreenDisplay(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // 1. Dhikr without background
+            // 1. Dhikr without background - fully reactive
             AnimatedContent(
-                targetState = state.formattedPhrase,
+                targetState = Triple(state.formattedPhrase, state.selectedFont, state.fontSizeSp),
                 transitionSpec = {
-                    (fadeIn(animationSpec = tween(600)) + slideInHorizontally(tween(600)) { 50 })
-                        .togetherWith(
-                            fadeOut(animationSpec = tween(500)) + slideOutHorizontally(tween(500)) { -50 }
-                        )
+                    if (initialState.first != targetState.first) {
+                        (fadeIn(animationSpec = tween(500)) + slideInHorizontally(tween(500)) { 40 })
+                            .togetherWith(
+                                fadeOut(animationSpec = tween(400)) + slideOutHorizontally(tween(400)) { -40 }
+                            )
+                    } else {
+                        fadeIn(animationSpec = tween(150)).togetherWith(fadeOut(animationSpec = tween(150)))
+                    }
                 },
                 label = "fullscreen_phrase"
-            ) { displayText ->
+            ) { (phraseText, fontType, fontSize) ->
+                val font = when (fontType) {
+                    ArabicFontType.AMIRI -> AmiriFontFamily
+                    ArabicFontType.CAIRO -> CairoFontFamily
+                    ArabicFontType.SYSTEM -> FontFamily.Default
+                }
                 Text(
-                    text = displayText,
+                    text = phraseText,
                     color = TextBlack, // Rich black font
-                    fontSize = (state.fontSizeSp * 1.25f).coerceAtMost(64f).sp,
-                    lineHeight = (state.fontSizeSp * 1.6f).sp,
-                    fontFamily = selectedFontFamily,
+                    fontSize = (fontSize * 1.3f).coerceAtMost(64f).sp,
+                    lineHeight = (fontSize * 1.6f).sp,
+                    fontFamily = font,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 16.dp)
@@ -1167,7 +1183,8 @@ fun FullscreenDisplay(
             // 3. Date under Clock in Fullscreen
             DateDisplayView(
                 gregorianDate = clockDate.gregorianDate,
-                hijriDate = clockDate.hijriDate
+                hijriDate = clockDate.hijriDate,
+                showHijri = state.showHijriDate
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -1433,57 +1450,87 @@ fun SettingsBottomSheet(
                 )
             }
 
-            // 5. Background Theme Selection
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "نمط خلفية الشاشة (جميعها محسنة لخط أسود واضح):",
-                    style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = CairoFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        color = TextDark
+            // 5. Hijri Date Options & Calibration
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFFF7F3E9))
+                    .padding(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "إظهار التاريخ الهجري",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = CairoFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                color = TextDark
+                            )
+                        )
+                        Text(
+                            text = "عرض التاريخ الهجري أسفل الساعة",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = CairoFontFamily,
+                                color = Color(0xFF756E63)
+                            )
+                        )
+                    }
+                    Switch(
+                        checked = state.showHijriDate,
+                        onCheckedChange = { viewModel.toggleShowHijriDate() },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = IslamicGreen
+                        )
                     )
-                )
+                }
 
-                DisplayTheme.values().forEach { themeItem ->
-                    val isSelected = state.selectedTheme == themeItem
-                    Surface(
-                        onClick = { viewModel.setDisplayTheme(themeItem) },
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isSelected) Color(0xFFE9F3ED) else Color(0xFFF7F3E9),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            if (isSelected) IslamicGreen else Color(0xFFE2D7C3)
-                        ),
-                        modifier = Modifier.fillMaxWidth()
+                if (state.showHijriDate) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "معايرة وضبط التاريخ الهجري (رؤية الهلال):",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFamily = CairoFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            color = IslamicGreen
+                        )
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column {
-                                Text(
-                                    text = themeItem.title,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontFamily = CairoFontFamily,
-                                        fontWeight = FontWeight.Bold,
-                                        color = TextDark
+                        listOf(-2 to "-2 يوم", -1 to "-1 يوم", 0 to "مطابق (0)", 1 to "+1 يوم", 2 to "+2 يوم").forEach { (offset, label) ->
+                            val isSelected = state.hijriAdjustmentDays == offset
+                            Surface(
+                                onClick = { viewModel.setHijriAdjustment(offset) },
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isSelected) IslamicGreen else Color.White,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (isSelected) IslamicGreen else Color(0xFFDDD2BD)
+                                ),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Box(
+                                    modifier = Modifier.padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontFamily = CairoFontFamily,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) Color.White else TextDark,
+                                            fontSize = 10.sp
+                                        )
                                     )
-                                )
-                                Text(
-                                    text = themeItem.description,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontFamily = CairoFontFamily,
-                                        color = Color(0xFF756E63)
-                                    )
-                                )
-                            }
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = IslamicGreen
-                                )
+                                }
                             }
                         }
                     }

@@ -9,7 +9,8 @@ import androidx.compose.ui.unit.sp
 import com.example.R
 
 val AmiriFontFamily = FontFamily(
-    Font(R.font.amiri, FontWeight.Normal)
+    Font(R.font.amiri, FontWeight.Normal),
+    Font(R.font.amiri, FontWeight.Bold)
 )
 
 val CairoFontFamily = FontFamily(
