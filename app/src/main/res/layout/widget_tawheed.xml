@@ -11,24 +11,6 @@
     android:paddingEnd="8dp"
     android:paddingBottom="6dp">
 
-    <!-- Top mini header with transparent switch button -->
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-
-        <ImageButton
-            android:id="@+id/widget_btn_switch"
-            android:layout_width="30dp"
-            android:layout_height="30dp"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
-            android:background="@drawable/widget_button_bg"
-            android:contentDescription="تبديل العبارة"
-            android:padding="6dp"
-            android:scaleType="fitCenter"
-            android:src="@drawable/ic_swap" />
-    </RelativeLayout>
-
     <!-- 1. The Dhikr rendered as custom-font Bitmap for 100% exact font type and size match -->
     <ImageView
         android:id="@+id/widget_text_image"

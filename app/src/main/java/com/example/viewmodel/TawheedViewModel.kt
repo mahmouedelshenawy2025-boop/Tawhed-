@@ -57,6 +57,8 @@ data class TawheedUiState(
     val isFullscreen: Boolean = false,
     val showHijriDate: Boolean = true,
     val hijriAdjustmentDays: Int = 0,
+    val clockFontSizeSp: Float = 36f,
+    val dateFontSizeSp: Float = 14f,
     val counterFirst: Int = 0,
     val counterSecond: Int = 0,
     val showWidgetDialog: Boolean = false,
@@ -102,6 +104,8 @@ class TawheedViewModel(application: Application) : AndroidViewModel(application)
             showVirtue = prefs.getBoolean(KEY_SHOW_VIRTUE, true),
             showHijriDate = prefs.getBoolean(KEY_SHOW_HIJRI_DATE, true),
             hijriAdjustmentDays = prefs.getInt(KEY_HIJRI_ADJUSTMENT, 0),
+            clockFontSizeSp = prefs.getFloat(KEY_CLOCK_FONT_SIZE, 36f).coerceIn(20f, 54f),
+            dateFontSizeSp = prefs.getFloat(KEY_DATE_FONT_SIZE, 14f).coerceIn(10f, 22f),
             counterFirst = prefs.getInt(KEY_COUNTER_FIRST, 0),
             counterSecond = prefs.getInt(KEY_COUNTER_SECOND, 0)
         )
@@ -112,6 +116,7 @@ class TawheedViewModel(application: Application) : AndroidViewModel(application)
 
     init {
         startTimer()
+        TawheedWidgetProvider.scheduleNextSwitch(application)
     }
 
     private fun startTimer() {
@@ -184,12 +189,7 @@ class TawheedViewModel(application: Application) : AndroidViewModel(application)
     private fun setPhraseIndex(index: Int) {
         _uiState.update { it.copy(currentIndex = index) }
         prefs.edit().putInt(KEY_CURRENT_INDEX, index).apply()
-
-        // Sync with home screen widget
-        val context = getApplication<Application>()
-        val widgetPrefs = context.getSharedPreferences("tawheed_prefs", Context.MODE_PRIVATE)
-        widgetPrefs.edit().putInt("current_phrase_index", index).apply()
-        TawheedWidgetProvider.notifyWidgetUpdate(context)
+        TawheedWidgetProvider.notifyWidgetUpdate(getApplication())
     }
 
     fun toggleAutoSwitch() {
@@ -199,6 +199,7 @@ class TawheedViewModel(application: Application) : AndroidViewModel(application)
             it.copy(isAutoSwitching = newState)
         }
         resetTimerElapsed()
+        TawheedWidgetProvider.scheduleNextSwitch(getApplication())
     }
 
     fun setInterval(seconds: Int) {
@@ -212,6 +213,7 @@ class TawheedViewModel(application: Application) : AndroidViewModel(application)
         }
         prefs.edit().putInt(KEY_INTERVAL_SECONDS, safeSeconds).apply()
         resetTimerElapsed()
+        TawheedWidgetProvider.scheduleNextSwitch(getApplication())
     }
 
     fun setFont(fontType: ArabicFontType) {
@@ -317,6 +319,20 @@ class TawheedViewModel(application: Application) : AndroidViewModel(application)
         TawheedWidgetProvider.notifyWidgetUpdate(getApplication())
     }
 
+    fun setClockFontSize(sizeSp: Float) {
+        val safeSize = sizeSp.coerceIn(20f, 54f)
+        _uiState.update { it.copy(clockFontSizeSp = safeSize) }
+        prefs.edit().putFloat(KEY_CLOCK_FONT_SIZE, safeSize).apply()
+        TawheedWidgetProvider.notifyWidgetUpdate(getApplication())
+    }
+
+    fun setDateFontSize(sizeSp: Float) {
+        val safeSize = sizeSp.coerceIn(10f, 22f)
+        _uiState.update { it.copy(dateFontSizeSp = safeSize) }
+        prefs.edit().putFloat(KEY_DATE_FONT_SIZE, safeSize).apply()
+        TawheedWidgetProvider.notifyWidgetUpdate(getApplication())
+    }
+
     fun resetAllCounters() {
         _uiState.update { it.copy(counterFirst = 0, counterSecond = 0) }
         prefs.edit().putInt(KEY_COUNTER_FIRST, 0).putInt(KEY_COUNTER_SECOND, 0).apply()
@@ -397,5 +413,7 @@ class TawheedViewModel(application: Application) : AndroidViewModel(application)
         const val KEY_COUNTER_SECOND = "counter_second"
         const val KEY_SHOW_HIJRI_DATE = "show_hijri_date"
         const val KEY_HIJRI_ADJUSTMENT = "hijri_adjustment"
+        const val KEY_CLOCK_FONT_SIZE = "clock_font_size"
+        const val KEY_DATE_FONT_SIZE = "date_font_size"
     }
 }

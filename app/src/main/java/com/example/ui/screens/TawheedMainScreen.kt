@@ -454,8 +454,13 @@ fun DigitalClockView(
     secondsString: String,
     amPmString: String,
     modifier: Modifier = Modifier,
+    clockSizeSp: Float = 36f,
     isLarge: Boolean = false
 ) {
+    val actualClockSize = if (isLarge) (clockSizeSp * 1.3f).coerceAtMost(58f) else clockSizeSp
+    val secondsSize = (actualClockSize * 0.38f).coerceIn(12f, 20f)
+    val amPmSize = (actualClockSize * 0.36f).coerceIn(11f, 18f)
+
     Row(
         modifier = modifier
             .padding(
@@ -468,7 +473,7 @@ fun DigitalClockView(
         // Main Time (hh:mm)
         Text(
             text = timeString,
-            fontSize = if (isLarge) 50.sp else 38.sp,
+            fontSize = actualClockSize.sp,
             fontWeight = FontWeight.ExtraBold,
             fontFamily = CairoFontFamily,
             color = Color(0xFF111827),
@@ -484,14 +489,14 @@ fun DigitalClockView(
         ) {
             Text(
                 text = ":$secondsString",
-                fontSize = if (isLarge) 18.sp else 14.sp,
+                fontSize = secondsSize.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = CairoFontFamily,
                 color = IslamicGold
             )
             Text(
                 text = amPmString,
-                fontSize = if (isLarge) 16.sp else 13.sp,
+                fontSize = amPmSize.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = CairoFontFamily,
                 color = IslamicGreen
@@ -505,8 +510,13 @@ fun DateDisplayView(
     gregorianDate: String,
     hijriDate: String,
     showHijri: Boolean = true,
+    dateSizeSp: Float = 14f,
+    isLarge: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    val actualDateSize = if (isLarge) (dateSizeSp * 1.25f).coerceAtMost(24f) else dateSizeSp
+    val hijriSize = (actualDateSize * 0.95f).coerceIn(10f, 20f)
+
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -518,7 +528,8 @@ fun DateDisplayView(
             style = MaterialTheme.typography.titleMedium.copy(
                 fontFamily = CairoFontFamily,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF374151)
+                color = Color(0xFF374151),
+                fontSize = actualDateSize.sp
             ),
             textAlign = TextAlign.Center
         )
@@ -530,7 +541,8 @@ fun DateDisplayView(
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontFamily = CairoFontFamily,
                     fontWeight = FontWeight.Normal,
-                    color = IslamicGold
+                    color = IslamicGold,
+                    fontSize = hijriSize.sp
                 ),
                 textAlign = TextAlign.Center
             )
@@ -597,7 +609,8 @@ fun MainPhraseCard(
         DigitalClockView(
             timeString = clockDate.timeString,
             secondsString = clockDate.secondsString,
-            amPmString = clockDate.amPmString
+            amPmString = clockDate.amPmString,
+            clockSizeSp = state.clockFontSizeSp
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -606,7 +619,8 @@ fun MainPhraseCard(
         DateDisplayView(
             gregorianDate = clockDate.gregorianDate,
             hijriDate = clockDate.hijriDate,
-            showHijri = state.showHijriDate
+            showHijri = state.showHijriDate,
+            dateSizeSp = state.dateFontSizeSp
         )
 
         // Meaning / Virtue (optional)
@@ -1175,6 +1189,7 @@ fun FullscreenDisplay(
                 timeString = clockDate.timeString,
                 secondsString = clockDate.secondsString,
                 amPmString = clockDate.amPmString,
+                clockSizeSp = state.clockFontSizeSp,
                 isLarge = true
             )
 
@@ -1184,7 +1199,9 @@ fun FullscreenDisplay(
             DateDisplayView(
                 gregorianDate = clockDate.gregorianDate,
                 hijriDate = clockDate.hijriDate,
-                showHijri = state.showHijriDate
+                showHijri = state.showHijriDate,
+                dateSizeSp = state.dateFontSizeSp,
+                isLarge = true
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -1413,7 +1430,79 @@ fun SettingsBottomSheet(
                 )
             }
 
-            // 4. Custom Switch Interval Slider
+            // 4. Clock Font Size Slider
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "حجم خط الساعة الرقمية:",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontFamily = CairoFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            color = TextDark
+                        )
+                    )
+                    Text(
+                        text = "${state.clockFontSizeSp.toInt()} sp",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFamily = CairoFontFamily,
+                            color = IslamicGreen
+                        )
+                    )
+                }
+
+                Slider(
+                    value = state.clockFontSizeSp,
+                    onValueChange = { viewModel.setClockFontSize(it) },
+                    valueRange = 22f..52f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = IslamicGreen,
+                        activeTrackColor = IslamicGreen,
+                        inactiveTrackColor = Color(0xFFDDD2BD)
+                    )
+                )
+            }
+
+            // 5. Date Font Size Slider
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "حجم خط التاريخ (الميلادي والهجري):",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontFamily = CairoFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            color = TextDark
+                        )
+                    )
+                    Text(
+                        text = "${state.dateFontSizeSp.toInt()} sp",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFamily = CairoFontFamily,
+                            color = IslamicGreen
+                        )
+                    )
+                }
+
+                Slider(
+                    value = state.dateFontSizeSp,
+                    onValueChange = { viewModel.setDateFontSize(it) },
+                    valueRange = 10f..22f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = IslamicGreen,
+                        activeTrackColor = IslamicGreen,
+                        inactiveTrackColor = Color(0xFFDDD2BD)
+                    )
+                )
+            }
+
+            // 6. Custom Switch Interval Slider
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),

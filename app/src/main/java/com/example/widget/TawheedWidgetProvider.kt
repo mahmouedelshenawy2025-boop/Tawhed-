@@ -1,5 +1,6 @@
 package com.example.widget
 
+import android.app.AlarmManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -32,23 +33,33 @@ class TawheedWidgetProvider : AppWidgetProvider() {
         for (appWidgetId in appWidgetIds) {
             updateAppWidget(context, appWidgetManager, appWidgetId)
         }
+        scheduleNextSwitch(context)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        if (intent.action == ACTION_SWITCH_PHRASE) {
+        val action = intent.action
+        if (action == ACTION_SWITCH_PHRASE || action == ACTION_AUTO_SWITCH_WIDGET) {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val currentIndex = prefs.getInt(KEY_CURRENT_PHRASE_INDEX, 0)
             val newIndex = if (currentIndex == 0) 1 else 0
             prefs.edit().putInt(KEY_CURRENT_PHRASE_INDEX, newIndex).apply()
 
-            val appWidgetManager = AppWidgetManager.getInstance(context)
-            val thisWidget = ComponentName(context, TawheedWidgetProvider::class.java)
-            val appWidgetIds = appWidgetManager.getAppWidgetIds(thisWidget)
-            for (appWidgetId in appWidgetIds) {
-                updateAppWidget(context, appWidgetManager, appWidgetId)
-            }
+            notifyWidgetUpdate(context)
+            scheduleNextSwitch(context)
+        } else if (action == Intent.ACTION_BOOT_COMPLETED) {
+            scheduleNextSwitch(context)
         }
+    }
+
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        scheduleNextSwitch(context)
+    }
+
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+        cancelScheduledSwitch(context)
     }
 
     companion object {
@@ -59,7 +70,12 @@ class TawheedWidgetProvider : AppWidgetProvider() {
         const val KEY_FONT_SIZE = "font_size"
         const val KEY_SHOW_HIJRI_DATE = "show_hijri_date"
         const val KEY_HIJRI_ADJUSTMENT = "hijri_adjustment"
+        const val KEY_INTERVAL_SECONDS = "interval_seconds"
+        const val KEY_AUTO_SWITCHING = "auto_switching"
+        const val KEY_CLOCK_FONT_SIZE = "clock_font_size"
+        const val KEY_DATE_FONT_SIZE = "date_font_size"
         const val ACTION_SWITCH_PHRASE = "com.example.tawheed.ACTION_SWITCH_PHRASE"
+        const val ACTION_AUTO_SWITCH_WIDGET = "com.example.tawheed.ACTION_AUTO_SWITCH_WIDGET"
 
         val PHRASES = listOf(
             "لا إله إلا الله",
@@ -97,7 +113,6 @@ class TawheedWidgetProvider : AppWidgetProvider() {
             fontSizeSp: Float
         ): Bitmap {
             val displayMetrics = context.resources.displayMetrics
-            // Convert sp to px (scaled for widget)
             val fontSizePx = TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_SP,
                 fontSizeSp.coerceIn(20f, 48f),
@@ -127,7 +142,6 @@ class TawheedWidgetProvider : AppWidgetProvider() {
                 typeface = Typeface.create(baseTypeface, Typeface.BOLD)
                 textSize = fontSizePx
                 textAlign = Paint.Align.CENTER
-                // White outer glow/shadow for readability on dark or light wallpapers
                 setShadowLayer(4f, 1f, 1f, 0xB0FFFFFF.toInt())
             }
 
@@ -144,6 +158,65 @@ class TawheedWidgetProvider : AppWidgetProvider() {
             canvas.drawText(text, xPos, yPos, paint)
 
             return bitmap
+        }
+
+        fun scheduleNextSwitch(context: Context) {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val isAuto = prefs.getBoolean(KEY_AUTO_SWITCHING, true)
+            if (!isAuto) {
+                cancelScheduledSwitch(context)
+                return
+            }
+
+            val intervalSec = prefs.getInt(KEY_INTERVAL_SECONDS, 5).coerceAtLeast(3)
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+
+            val intent = Intent(context, TawheedWidgetProvider::class.java).apply {
+                action = ACTION_AUTO_SWITCH_WIDGET
+            }
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                2020,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val triggerAtMillis = System.currentTimeMillis() + (intervalSec * 1000L)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        triggerAtMillis,
+                        pendingIntent
+                    )
+                } else {
+                    alarmManager.setExact(
+                        AlarmManager.RTC_WAKEUP,
+                        triggerAtMillis,
+                        pendingIntent
+                    )
+                }
+            } catch (_: SecurityException) {
+                alarmManager.set(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerAtMillis,
+                    pendingIntent
+                )
+            }
+        }
+
+        fun cancelScheduledSwitch(context: Context) {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+            val intent = Intent(context, TawheedWidgetProvider::class.java).apply {
+                action = ACTION_AUTO_SWITCH_WIDGET
+            }
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                2020,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            alarmManager.cancel(pendingIntent)
         }
 
         fun updateAppWidget(
@@ -163,24 +236,36 @@ class TawheedWidgetProvider : AppWidgetProvider() {
             }
 
             val fontSize = prefs.getFloat(KEY_FONT_SIZE, 32f).coerceIn(20f, 48f)
+            val clockFontSize = prefs.getFloat(KEY_CLOCK_FONT_SIZE, 36f)
+            val dateFontSize = prefs.getFloat(KEY_DATE_FONT_SIZE, 14f)
+
             val showHijri = prefs.getBoolean(KEY_SHOW_HIJRI_DATE, true)
             val hijriAdjustment = prefs.getInt(KEY_HIJRI_ADJUSTMENT, 0)
 
             val views = RemoteViews(context.packageName, R.layout.widget_tawheed)
 
-            // Render custom-font Dhikr bitmap
+            // 1. Render custom-font Dhikr bitmap
             try {
                 val phraseBitmap = createPhraseBitmap(context, displayText, fontType, fontSize)
                 views.setImageViewBitmap(R.id.widget_text_image, phraseBitmap)
                 views.setViewVisibility(R.id.widget_text_image, View.VISIBLE)
                 views.setViewVisibility(R.id.widget_text, View.GONE)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 views.setTextViewText(R.id.widget_text, displayText)
                 views.setViewVisibility(R.id.widget_text, View.VISIBLE)
                 views.setViewVisibility(R.id.widget_text_image, View.GONE)
             }
 
-            // Hijri Date
+            // 2. Dynamic Clock Size in Widget
+            val widgetClockSize = (clockFontSize * 0.55f).coerceIn(14f, 32f)
+            views.setTextViewTextSize(R.id.widget_clock, TypedValue.COMPLEX_UNIT_SP, widgetClockSize)
+
+            // 3. Dynamic Date Size in Widget
+            val widgetDateSize = (dateFontSize * 0.85f).coerceIn(10f, 18f)
+            views.setTextViewTextSize(R.id.widget_date, TypedValue.COMPLEX_UNIT_SP, widgetDateSize)
+            views.setTextViewTextSize(R.id.widget_hijri_date, TypedValue.COMPLEX_UNIT_SP, widgetDateSize)
+
+            // 4. Hijri Date
             if (showHijri) {
                 val hijriDateStr = getHijriDate(hijriAdjustment)
                 if (hijriDateStr.isNotEmpty()) {
@@ -192,18 +277,6 @@ class TawheedWidgetProvider : AppWidgetProvider() {
             } else {
                 views.setViewVisibility(R.id.widget_hijri_date, View.GONE)
             }
-
-            // Switch button PendingIntent
-            val switchIntent = Intent(context, TawheedWidgetProvider::class.java).apply {
-                action = ACTION_SWITCH_PHRASE
-            }
-            val switchPendingIntent = PendingIntent.getBroadcast(
-                context,
-                1001,
-                switchIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            views.setOnClickPendingIntent(R.id.widget_btn_switch, switchPendingIntent)
 
             // Container click opens the app
             val appIntent = Intent(context, MainActivity::class.java)
