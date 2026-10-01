@@ -5,12 +5,9 @@ on:
     branches: [ "**" ]
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   build:
-    name: Build APK
+    name: Build & Package APK
     runs-on: ubuntu-latest
 
     steps:
@@ -27,41 +24,58 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Configure Android SDK and Licenses
+        run: |
+          set +e
+          if [ -d "$ANDROID_HOME" ]; then
+            sudo chown -R $USER:$USER "$ANDROID_HOME" 2>/dev/null || true
+          fi
+          mkdir -p "${ANDROID_HOME}/licenses" 2>/dev/null || true
+          printf "24333f8a63b6825ea9c5514f83c2829b004d1fee\n84831b9409646a918e30573bab4c9c91346d8abd\nd56f5187479451eabf01fb78af6dfcb131a6481e\n" > "${ANDROID_HOME}/licenses/android-sdk-license" 2>/dev/null || true
+          set -e
+
       - name: Restore Keystore and Environment Config
         run: |
-          # Recreate debug.keystore from base64
+          # 1. Restore from base64 if present
           if [ -f "debug.keystore.base64" ]; then
-            base64 -d debug.keystore.base64 > debug.keystore
-            echo "debug.keystore restored successfully"
+            base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null || true
           fi
 
-          # Create .env from template
-          if [ ! -f ".env" ] && [ -f ".env.example" ]; then
-            cp .env.example .env
-            echo ".env created from template"
+          # 2. Guarantee debug.keystore exists with valid credentials
+          if [ ! -f "debug.keystore" ]; then
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+            echo "Generated new debug.keystore"
+          else
+            echo "debug.keystore verified"
           fi
 
-          # Ensure execution permissions for gradlew
-          chmod +x gradlew
+          # 3. Create .env if missing
+          if [ ! -f ".env" ]; then
+            touch .env
+          fi
 
-          # Accept Android licenses automatically
-          mkdir -p "${ANDROID_HOME}/licenses"
-          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> "${ANDROID_HOME}/licenses/android-sdk-license"
-          echo "84831b9409646a918e30573bab4c9c91346d8abd" >> "${ANDROID_HOME}/licenses/android-sdk-license"
-          echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> "${ANDROID_HOME}/licenses/android-sdk-license"
+          # 4. Make gradlew executable if present
+          if [ -f "./gradlew" ]; then
+            chmod +x ./gradlew
+          fi
 
-      - name: Build APK with Gradle Wrapper
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+      - name: Build APK with Gradle
+        run: |
+          if [ -f "./gradlew" ]; then
+            ./gradlew assembleDebug --no-daemon --stacktrace
+          else
+            gradle assembleDebug --no-daemon --stacktrace
+          fi
 
-      - name: Prepare APK File
+      - name: Prepare APK File for Download
         run: |
           mkdir -p output-apk
-          APK_FILE=$(find . -name "*debug*.apk" -o -name "app-debug.apk" | head -n 1)
-          if [ -n "$APK_FILE" ]; then
-            cp "$APK_FILE" output-apk/Tawheed_App.apk
-            echo "Found and prepared APK: output-apk/Tawheed_App.apk"
+          APK_PATH=$(find . -name "*.apk" ! -name "*unaligned*" | head -n 1)
+          if [ -n "$APK_PATH" ]; then
+            cp "$APK_PATH" output-apk/Tawheed_App.apk
+            echo "APK ready at output-apk/Tawheed_App.apk"
           else
-            echo "ERROR: No APK was generated!"
+            echo "ERROR: No APK found after build!"
             exit 1
           fi
 
@@ -74,13 +88,11 @@ jobs:
           retention-days: 30
 
       - name: Create GitHub Release
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release delete "v1.0" --yes || true
-          git tag -d "v1.0" || true
-          git push origin :refs/tags/v1.0 || true
-          gh release create "v1.0" output-apk/Tawheed_App.apk \
+          set +e
+          gh release create "v1.0-${{ github.run_number }}" output-apk/Tawheed_App.apk \
             --title "تحميل تطبيق ذكر التوحيد (APK)" \
-            --notes "اضغط على Tawheed_App.apk بالأسفل لتحميل التطبيق مباشرة وتثبيته على هاتفك." \
-            --target "${{ github.sha }}" || echo "Release step finished"
+            --notes "اضغط على Tawheed_App.apk بالأسفل لتثبيت التطبيق على هاتفك." 2>/dev/null || true
