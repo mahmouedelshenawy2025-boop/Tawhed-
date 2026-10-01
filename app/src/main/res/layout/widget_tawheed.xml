@@ -3,53 +3,58 @@
     android:id="@+id/widget_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_bg"
+    android:background="@android:color/transparent"
     android:gravity="center"
     android:orientation="vertical"
-    android:paddingStart="14dp"
-    android:paddingTop="10dp"
-    android:paddingEnd="14dp"
-    android:paddingBottom="10dp">
+    android:paddingStart="8dp"
+    android:paddingTop="6dp"
+    android:paddingEnd="8dp"
+    android:paddingBottom="6dp">
 
-    <!-- Top mini header with switch button -->
-    <LinearLayout
+    <!-- Top mini header with transparent switch button -->
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:fontFamily="serif"
-            android:text="ذكر التوحيد"
-            android:textColor="#8C7853"
-            android:textSize="11sp" />
+        android:layout_height="wrap_content">
 
         <ImageButton
             android:id="@+id/widget_btn_switch"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
             android:background="@drawable/widget_button_bg"
             android:contentDescription="تبديل العبارة"
-            android:padding="5dp"
+            android:padding="6dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_swap" />
-    </LinearLayout>
+    </RelativeLayout>
 
-    <!-- 1. The Dhikr without background (bold black) -->
-    <TextView
-        android:id="@+id/widget_text"
+    <!-- 1. The Dhikr rendered as custom-font Bitmap for 100% exact font type and size match -->
+    <ImageView
+        android:id="@+id/widget_text_image"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
         android:layout_marginBottom="2dp"
+        android:adjustViewBounds="true"
+        android:scaleType="fitCenter"
+        android:contentDescription="نص الذكر" />
+
+    <!-- Fallback TextView -->
+    <TextView
+        android:id="@+id/widget_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
         android:gravity="center"
         android:text="(لا إله إلا الله)"
         android:textColor="#000000"
-        android:textSize="20sp"
-        android:textStyle="bold" />
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:shadowColor="#80FFFFFF"
+        android:shadowDx="1"
+        android:shadowDy="1"
+        android:shadowRadius="3"
+        android:visibility="gone" />
 
     <!-- 2. Digital Clock under Dhikr -->
     <TextClock
@@ -60,10 +65,14 @@
         android:format24Hour="HH:mm"
         android:gravity="center"
         android:textColor="#111827"
-        android:textSize="17sp"
-        android:textStyle="bold" />
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:shadowColor="#99FFFFFF"
+        android:shadowDx="1"
+        android:shadowDy="1"
+        android:shadowRadius="3" />
 
-    <!-- 3. Date under Clock -->
+    <!-- 3. Gregorian Date under Clock -->
     <TextClock
         android:id="@+id/widget_date"
         android:layout_width="wrap_content"
@@ -72,7 +81,27 @@
         android:format12Hour="EEEE، d MMMM"
         android:format24Hour="EEEE، d MMMM"
         android:gravity="center"
-        android:textColor="#6B604A"
-        android:textSize="11sp" />
+        android:textColor="#374151"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:shadowColor="#99FFFFFF"
+        android:shadowDx="1"
+        android:shadowDy="1"
+        android:shadowRadius="2" />
+
+    <!-- 4. Hijri Date under Gregorian Date -->
+    <TextView
+        android:id="@+id/widget_hijri_date"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:gravity="center"
+        android:textColor="#374151"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:shadowColor="#99FFFFFF"
+        android:shadowDx="1"
+        android:shadowDy="1"
+        android:shadowRadius="2" />
 
 </LinearLayout>

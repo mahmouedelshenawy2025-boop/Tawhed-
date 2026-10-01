@@ -217,28 +217,26 @@ class TawheedViewModel(application: Application) : AndroidViewModel(application)
     fun setFont(fontType: ArabicFontType) {
         _uiState.update { it.copy(selectedFont = fontType) }
         prefs.edit().putString(KEY_FONT_TYPE, fontType.name).apply()
+        TawheedWidgetProvider.notifyWidgetUpdate(getApplication())
     }
 
     fun setFontSize(sizeSp: Float) {
-        val safeSize = sizeSp.coerceIn(26f, 60f)
+        val safeSize = sizeSp.coerceIn(24f, 64f)
         _uiState.update { it.copy(fontSizeSp = safeSize) }
         prefs.edit().putFloat(KEY_FONT_SIZE, safeSize).apply()
+        TawheedWidgetProvider.notifyWidgetUpdate(getApplication())
     }
 
     fun setBracketStyle(style: BracketStyle) {
         _uiState.update { it.copy(bracketStyle = style) }
-        prefs.edit().putString(KEY_BRACKET_STYLE, style.name).apply()
-
-        val context = getApplication<Application>()
-        val widgetPrefs = context.getSharedPreferences("tawheed_prefs", Context.MODE_PRIVATE)
         val widgetStyleKey = when (style) {
             BracketStyle.ROUND -> "round"
             BracketStyle.QURANIC -> "quranic"
             BracketStyle.SQUARE -> "square"
             BracketStyle.NONE -> "none"
         }
-        widgetPrefs.edit().putString("bracket_style", widgetStyleKey).apply()
-        TawheedWidgetProvider.notifyWidgetUpdate(context)
+        prefs.edit().putString(KEY_BRACKET_STYLE, widgetStyleKey).apply()
+        TawheedWidgetProvider.notifyWidgetUpdate(getApplication())
     }
 
     fun setDisplayTheme(theme: DisplayTheme) {
@@ -307,6 +305,7 @@ class TawheedViewModel(application: Application) : AndroidViewModel(application)
             prefs.edit().putBoolean(KEY_SHOW_HIJRI_DATE, newVal).apply()
             it.copy(showHijriDate = newVal)
         }
+        TawheedWidgetProvider.notifyWidgetUpdate(getApplication())
     }
 
     fun setHijriAdjustment(days: Int) {
@@ -315,6 +314,7 @@ class TawheedViewModel(application: Application) : AndroidViewModel(application)
             prefs.edit().putInt(KEY_HIJRI_ADJUSTMENT, clamped).apply()
             it.copy(hijriAdjustmentDays = clamped)
         }
+        TawheedWidgetProvider.notifyWidgetUpdate(getApplication())
     }
 
     fun resetAllCounters() {
@@ -382,20 +382,20 @@ class TawheedViewModel(application: Application) : AndroidViewModel(application)
     }
 
     companion object {
-        private const val PREFS_NAME = "tawheed_app_prefs"
-        private const val KEY_CURRENT_INDEX = "app_current_index"
-        private const val KEY_INTERVAL_SECONDS = "app_interval_seconds"
-        private const val KEY_AUTO_SWITCHING = "app_auto_switching"
-        private const val KEY_FONT_TYPE = "app_font_type"
-        private const val KEY_FONT_SIZE = "app_font_size"
-        private const val KEY_BRACKET_STYLE = "app_bracket_style"
-        private const val KEY_DISPLAY_THEME = "app_display_theme"
-        private const val KEY_HAPTIC = "app_haptic"
-        private const val KEY_KEEP_SCREEN_ON = "app_keep_screen_on"
-        private const val KEY_SHOW_VIRTUE = "app_show_virtue"
-        private const val KEY_COUNTER_FIRST = "app_counter_first"
-        private const val KEY_COUNTER_SECOND = "app_counter_second"
-        private const val KEY_SHOW_HIJRI_DATE = "app_show_hijri_date"
-        private const val KEY_HIJRI_ADJUSTMENT = "app_hijri_adjustment"
+        const val PREFS_NAME = "tawheed_prefs"
+        const val KEY_CURRENT_INDEX = "current_phrase_index"
+        const val KEY_INTERVAL_SECONDS = "interval_seconds"
+        const val KEY_AUTO_SWITCHING = "auto_switching"
+        const val KEY_FONT_TYPE = "font_type"
+        const val KEY_FONT_SIZE = "font_size"
+        const val KEY_BRACKET_STYLE = "bracket_style"
+        const val KEY_DISPLAY_THEME = "display_theme"
+        const val KEY_HAPTIC = "haptic_enabled"
+        const val KEY_KEEP_SCREEN_ON = "keep_screen_on"
+        const val KEY_SHOW_VIRTUE = "show_virtue"
+        const val KEY_COUNTER_FIRST = "counter_first"
+        const val KEY_COUNTER_SECOND = "counter_second"
+        const val KEY_SHOW_HIJRI_DATE = "show_hijri_date"
+        const val KEY_HIJRI_ADJUSTMENT = "hijri_adjustment"
     }
 }

@@ -6,9 +6,21 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Typeface
+import android.os.Build
+import android.text.TextPaint
+import android.util.TypedValue
+import android.view.View
 import android.widget.RemoteViews
+import androidx.core.content.res.ResourcesCompat
 import com.example.MainActivity
 import com.example.R
+import com.example.model.ArabicFontType
+import java.util.Locale
 
 class TawheedWidgetProvider : AppWidgetProvider() {
 
@@ -43,6 +55,10 @@ class TawheedWidgetProvider : AppWidgetProvider() {
         const val PREFS_NAME = "tawheed_prefs"
         const val KEY_CURRENT_PHRASE_INDEX = "current_phrase_index"
         const val KEY_BRACKET_STYLE = "bracket_style"
+        const val KEY_FONT_TYPE = "font_type"
+        const val KEY_FONT_SIZE = "font_size"
+        const val KEY_SHOW_HIJRI_DATE = "show_hijri_date"
+        const val KEY_HIJRI_ADJUSTMENT = "hijri_adjustment"
         const val ACTION_SWITCH_PHRASE = "com.example.tawheed.ACTION_SWITCH_PHRASE"
 
         val PHRASES = listOf(
@@ -62,6 +78,74 @@ class TawheedWidgetProvider : AppWidgetProvider() {
             }
         }
 
+        fun getHijriDate(adjustmentDays: Int): String {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                try {
+                    val localDate = java.time.LocalDate.now().plusDays(adjustmentDays.toLong())
+                    val hijrahDate = java.time.chrono.HijrahDate.from(localDate)
+                    val formatter = java.time.format.DateTimeFormatter.ofPattern("d MMMM yyyy", Locale("ar"))
+                    return "${formatter.format(hijrahDate)} هـ"
+                } catch (_: Exception) {}
+            }
+            return ""
+        }
+
+        fun createPhraseBitmap(
+            context: Context,
+            text: String,
+            fontType: ArabicFontType,
+            fontSizeSp: Float
+        ): Bitmap {
+            val displayMetrics = context.resources.displayMetrics
+            // Convert sp to px (scaled for widget)
+            val fontSizePx = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_SP,
+                fontSizeSp.coerceIn(20f, 48f),
+                displayMetrics
+            )
+
+            val baseTypeface = when (fontType) {
+                ArabicFontType.AMIRI -> {
+                    try {
+                        ResourcesCompat.getFont(context, R.font.amiri) ?: Typeface.DEFAULT_BOLD
+                    } catch (_: Exception) {
+                        Typeface.DEFAULT_BOLD
+                    }
+                }
+                ArabicFontType.CAIRO -> {
+                    try {
+                        ResourcesCompat.getFont(context, R.font.cairo) ?: Typeface.DEFAULT_BOLD
+                    } catch (_: Exception) {
+                        Typeface.DEFAULT_BOLD
+                    }
+                }
+                ArabicFontType.SYSTEM -> Typeface.DEFAULT_BOLD
+            }
+
+            val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.BLACK
+                typeface = Typeface.create(baseTypeface, Typeface.BOLD)
+                textSize = fontSizePx
+                textAlign = Paint.Align.CENTER
+                // White outer glow/shadow for readability on dark or light wallpapers
+                setShadowLayer(4f, 1f, 1f, 0xB0FFFFFF.toInt())
+            }
+
+            val fontMetrics = paint.fontMetrics
+            val textWidth = paint.measureText(text)
+            val width = (textWidth + 40f).toInt().coerceAtLeast(100)
+            val textHeight = fontMetrics.bottom - fontMetrics.top
+            val height = (textHeight + 24f).toInt().coerceAtLeast(50)
+
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            val xPos = width / 2f
+            val yPos = (height / 2f) - ((fontMetrics.descent + fontMetrics.ascent) / 2f)
+            canvas.drawText(text, xPos, yPos, paint)
+
+            return bitmap
+        }
+
         fun updateAppWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
@@ -71,8 +155,43 @@ class TawheedWidgetProvider : AppWidgetProvider() {
             val currentIndex = prefs.getInt(KEY_CURRENT_PHRASE_INDEX, 0)
             val displayText = getFormattedPhrase(context, currentIndex)
 
+            val fontTypeName = prefs.getString(KEY_FONT_TYPE, ArabicFontType.AMIRI.name) ?: ArabicFontType.AMIRI.name
+            val fontType = try {
+                ArabicFontType.valueOf(fontTypeName)
+            } catch (_: Exception) {
+                ArabicFontType.AMIRI
+            }
+
+            val fontSize = prefs.getFloat(KEY_FONT_SIZE, 32f).coerceIn(20f, 48f)
+            val showHijri = prefs.getBoolean(KEY_SHOW_HIJRI_DATE, true)
+            val hijriAdjustment = prefs.getInt(KEY_HIJRI_ADJUSTMENT, 0)
+
             val views = RemoteViews(context.packageName, R.layout.widget_tawheed)
-            views.setTextViewText(R.id.widget_text, displayText)
+
+            // Render custom-font Dhikr bitmap
+            try {
+                val phraseBitmap = createPhraseBitmap(context, displayText, fontType, fontSize)
+                views.setImageViewBitmap(R.id.widget_text_image, phraseBitmap)
+                views.setViewVisibility(R.id.widget_text_image, View.VISIBLE)
+                views.setViewVisibility(R.id.widget_text, View.GONE)
+            } catch (e: Exception) {
+                views.setTextViewText(R.id.widget_text, displayText)
+                views.setViewVisibility(R.id.widget_text, View.VISIBLE)
+                views.setViewVisibility(R.id.widget_text_image, View.GONE)
+            }
+
+            // Hijri Date
+            if (showHijri) {
+                val hijriDateStr = getHijriDate(hijriAdjustment)
+                if (hijriDateStr.isNotEmpty()) {
+                    views.setTextViewText(R.id.widget_hijri_date, "• $hijriDateStr •")
+                    views.setViewVisibility(R.id.widget_hijri_date, View.VISIBLE)
+                } else {
+                    views.setViewVisibility(R.id.widget_hijri_date, View.GONE)
+                }
+            } else {
+                views.setViewVisibility(R.id.widget_hijri_date, View.GONE)
+            }
 
             // Switch button PendingIntent
             val switchIntent = Intent(context, TawheedWidgetProvider::class.java).apply {
